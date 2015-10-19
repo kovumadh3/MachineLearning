@@ -1,0 +1,70 @@
+---
+title: "Practical Mechine Learning"
+author: "Madhu, Kovuri"
+---
+<h3>Background </h3>
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience.
+
+<h3>Executive Summary </h3>
+The goal of this project is to predict the manner in which the participants did the exercise. Methods of classification like Multinomial Logistic Regression and Niave Bayes tried but the overall predicting accuracy was less than 92%. Finally decided to go with Random Forests where the predicting power was more than 99%.
+
+<h3>The Data</h3>
+The training dataset contains 19,622 rows with 160 variables. Many of the variables have missing data and are not suitable to run prediction analysis. It was decided to take only variables with at-least 60% of the data present in each variable. All the screening variables at the beginning of the dataset are removed from the analysis.
+
+```{r}
+library(caret)
+setwd("C:/Coursera/MechineLearning/Project")
+pmldata<-read.csv("pml-training.csv",header=TRUE,na.strings=c("NA","","#DIV/0!"))
+cleanData<-c(colSums(!is.na(pmldata[,-ncol(pmldata)])) >= .6 * nrow(pmldata))
+pmldata<-pmldata[,cleanData]
+pmldata<-pmldata[,-(1:7)]
+```
+
+The training dataset was further split into training and testing datasets at 60:40 ratio. The model was built on training dataset and applied the model on the testing dataset. 
+```{r}
+
+inTrain<-createDataPartition(y=pmldata$classe,p=.6,list=FALSE)
+training<-pmldata[inTrain,]
+testing<-pmldata[-inTrain,]
+dim(training);dim(testing)
+```
+<h3>The Model</h3>
+We decided to go with Random Forest classification trees model. For a given test
+observation, we record the class predicted by each of the bootstrapped model tree, and the overall prediction is the most commonly occurring majority class among the predictions.
+
+```{r}
+library(randomForest)
+ran_Forest<-randomForest(classe ~ .,ntree=500,data=training,importance=TRUE)
+print(ran_Forest)
+```
+With Random Forest modelling, on an average each tree makes use of around two-thirds observations and the remaining one-third of the observations not used in the model are referred to as out-of the bag(OOB) observations. So, we can directly estimate the test error without need to go cross-validation or validation set approach. The OOB error is the valid estimate of the test error, since the response for each observation is predicted using only the trees that were not fit using that observation. As we see in the above table the class error and OOB errors are very low implies that the model suits well for the training dataset. 
+
+However, we can check our prediction accuracy using the testing dataset.
+```{r}
+pred<-predict(ran_Forest,testing)
+confusionMatrix(pred,testing$classe)
+
+```
+When we applied the model on the testing dataset, the overall model accuracy, Sensitivity and Specificity were more than 99% confirming the training result that the model suits very well on the dataset.
+
+<h3> Variable Importance </h3>
+```{r}
+varImpPlot(ran_Forest,n.var=10, main="Variable Importance (top 10)")
+```
+
+In the above chart, we are providing top 10 (out of 53) variables contributing more to model accuracy and prediction. Mean Decrease Accuracy measures the importance of the variable in the model to reduce classification error. A higher decrease in Gini means that a particular predictor variable plays a greater role in partitioning the data into the defined classes. 
+
+<h3>Prediction assignment</h3>
+Finally we have to predict values for the testing dataset provided for the assignment.
+```{r}
+pmldata2<-read.csv("pml-testing.csv",header=TRUE,na.strings=c("NA","","#DIV/0!"))
+cleanData2<-c(colSums(!is.na(pmldata2[,-ncol(pmldata2)])) >= .6 * nrow(pmldata2))
+pmldata2<-pmldata2[,cleanData2]
+pmldata2<-pmldata2[,-(1:7)]
+predict2<-predict(ran_Forest,pmldata2)
+print(predict2)
+```
+
+
